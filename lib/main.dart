@@ -88,10 +88,17 @@ class VendasStorage {
     final prefs = await SharedPreferences.getInstance();
     final jsonList = prefs.getStringList(_storageKey) ?? [];
 
-    return jsonList
-        .map((jsonItem) => VendaDiaria.fromMap(jsonDecode(jsonItem) as Map<String, dynamic>))
-        .toList()
-      ..sort((a, b) => b.data.compareTo(a.data));
+    final vendas = <VendaDiaria>[];
+    for (final jsonItem in jsonList) {
+      try {
+        vendas.add(VendaDiaria.fromMap(jsonDecode(jsonItem) as Map<String, dynamic>));
+      } catch (_) {
+        continue;
+      }
+    }
+
+    vendas.sort((a, b) => b.data.compareTo(a.data));
+    return vendas;
   }
 
   static Future<void> salvar(List<VendaDiaria> vendas) async {
@@ -181,7 +188,7 @@ class _DashboardVendasState extends State<DashboardVendas> {
     );
 
     setState(() {
-      _historicoVendas = [venda, ..._historicoVendas]..sort((a, b) => b.data.compareTo(a.data));
+      _historicoVendas = [venda, ..._historicoVendas];
       _cartaoController.clear();
       _mesaController.clear();
       _ifoodController.clear();
@@ -229,10 +236,10 @@ class _DashboardVendasState extends State<DashboardVendas> {
     }
 
     final inicioSemana = _inicioSemana(ref);
-    final fimSemana = inicioSemana.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+    final fimSemanaExclusivo = inicioSemana.add(const Duration(days: 7));
 
     return _historicoVendas
-        .where((v) => !v.data.isBefore(inicioSemana) && !v.data.isAfter(fimSemana))
+        .where((v) => !v.data.isBefore(inicioSemana) && v.data.isBefore(fimSemanaExclusivo))
         .toList();
   }
 
@@ -444,6 +451,7 @@ class _DashboardVendasState extends State<DashboardVendas> {
 
     final soma = totais.values.fold<double>(0, (a, b) => a + b);
     final cores = [Colors.blue, Colors.orange, Colors.red, Colors.green];
+    final totalEntries = totais.entries.toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -463,9 +471,8 @@ class _DashboardVendasState extends State<DashboardVendas> {
                         PieChartData(
                           sectionsSpace: 2,
                           centerSpaceRadius: 36,
-                          sections: totais.entries.toList().asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final item = entry.value;
+                          sections: List.generate(totalEntries.length, (index) {
+                            final item = totalEntries[index];
                             final valor = item.value;
                             final percentual = (valor / soma) * 100;
                             return PieChartSectionData(
@@ -486,9 +493,8 @@ class _DashboardVendasState extends State<DashboardVendas> {
             ),
           ),
           const SizedBox(height: 12),
-          ...totais.entries.toList().asMap().entries.map((entry) {
-            final index = entry.key;
-            final item = entry.value;
+          ...List.generate(totalEntries.length, (index) {
+            final item = totalEntries[index];
             return Card(
               child: ListTile(
                 leading: CircleAvatar(backgroundColor: cores[index], radius: 8),
