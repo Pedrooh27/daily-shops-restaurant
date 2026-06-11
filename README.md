@@ -11,8 +11,8 @@ Aplicativo Flutter para controle diário de vendas do restaurante.
 
 ## Estrutura
 
-- `/home/runner/work/daily-shops-restaurant/daily-shops-restaurant/Pedrooh27/daily-shops-restaurant/lib/main.dart`
-- `/home/runner/work/daily-shops-restaurant/daily-shops-restaurant/Pedrooh27/daily-shops-restaurant/pubspec.yaml`
+- `lib/main.dart`
+- `pubspec.yaml`
 
 ## Dependências
 
