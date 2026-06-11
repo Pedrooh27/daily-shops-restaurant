@@ -214,6 +214,11 @@ class _DashboardVendasState extends State<DashboardVendas> {
     });
   }
 
+  DateTime _inicioSemana(DateTime data) {
+    return DateTime(data.year, data.month, data.day)
+        .subtract(Duration(days: data.weekday - DateTime.monday));
+  }
+
   List<VendaDiaria> _vendasDoPeriodo() {
     final ref = _dataReferencia;
 
@@ -223,8 +228,7 @@ class _DashboardVendasState extends State<DashboardVendas> {
           .toList();
     }
 
-    final inicioSemana = DateTime(ref.year, ref.month, ref.day)
-        .subtract(Duration(days: ref.weekday - DateTime.monday));
+    final inicioSemana = _inicioSemana(ref);
     final fimSemana = inicioSemana.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
 
     return _historicoVendas
@@ -334,7 +338,7 @@ class _DashboardVendasState extends State<DashboardVendas> {
   Widget _buildPeriodoHeader() {
     final label = _periodoSelecionado == PeriodoRelatorio.mes
         ? DateFormat('MMMM/yyyy', 'pt_BR').format(_dataReferencia)
-        : 'Semana de ${DateFormat('dd/MM/yyyy').format(_dataReferencia.subtract(Duration(days: _dataReferencia.weekday - 1)))}';
+        : 'Semana de ${DateFormat('dd/MM/yyyy').format(_inicioSemana(_dataReferencia))}';
 
     return Card(
       child: Padding(
