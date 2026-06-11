@@ -98,7 +98,6 @@ class VendasStorage {
         debugPrint('Registro inválido ignorado: $error');
       } catch (error) {
         debugPrint('Falha ao carregar registro salvo: $error');
-        continue;
       }
     }
 
