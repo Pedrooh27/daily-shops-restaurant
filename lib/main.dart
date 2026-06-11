@@ -91,7 +91,12 @@ class VendasStorage {
     final vendas = <VendaDiaria>[];
     for (final jsonItem in jsonList) {
       try {
-        vendas.add(VendaDiaria.fromMap(jsonDecode(jsonItem) as Map<String, dynamic>));
+        final decoded = jsonDecode(jsonItem);
+        if (decoded is Map<String, dynamic>) {
+          vendas.add(VendaDiaria.fromMap(decoded));
+        } else {
+          debugPrint('Registro ignorado por formato inválido.');
+        }
       } on FormatException catch (error) {
         debugPrint('Registro inválido ignorado: $error');
       } on TypeError catch (error) {
