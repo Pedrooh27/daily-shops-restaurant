@@ -1,2 +1,21 @@
 # daily-shops-restaurant
-For save the daily shops of an restaurant
+
+Aplicativo Flutter para controle diário de vendas do restaurante.
+
+## Funcionalidades implementadas
+
+- Lançamento diário por tipo de venda (Cartão, Mesa, iFood, Dinheiro) e Saída.
+- Persistência local dos lançamentos (SharedPreferences), mantendo dados após fechar o app.
+- Aba de **Relatórios** com seleção de **Semana** ou **Mês** e total automático do período.
+- Aba de **Gráficos** com distribuição por meio de pagamento no período selecionado.
+
+## Estrutura
+
+- `lib/main.dart`
+- `pubspec.yaml`
+
+## Dependências
+
+- `intl`
+- `shared_preferences`
+- `fl_chart`
