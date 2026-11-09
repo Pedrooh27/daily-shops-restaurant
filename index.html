@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#059669" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Caixa Diário" />
+  <title>Caixa Diário — Controle de Vendas do Restaurante</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+  <link rel="apple-touch-icon" href="./icon.svg" />
+  <link rel="stylesheet" href="./styles.css" />
+  <!-- Firebase SDK (Cloud Firestore em tempo real) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="container header-content">
+      <div class="brand">
+        <img src="./icon.svg" alt="Ícone Caixa Diário" class="brand-icon" />
+        <div>
+          <h1>Caixa Diário</h1>
+          <p class="subtitle">Controle de Vendas e Faturamento do Restaurante</p>
+        </div>
+      </div>
+
+      <div class="header-actions no-print">
+        <span id="syncStatusBadge" class="sync-badge sync-connecting" title="Status da sincronização em nuvem">
+          🔄 Conectando nuvem...
+        </span>
+        <button type="button" id="btnExportCSV" class="btn btn-outline btn-sm" title="Exportar planilha para Excel">
+          📊 Exportar CSV
+        </button>
+        <button type="button" id="btnBackupModal" class="btn btn-outline btn-sm" title="Salvar ou restaurar cópia de segurança">
+          💾 Backup
+        </button>
+      </div>
+    </div>
+
+    <nav class="nav-tabs container no-print" aria-label="Navegação principal">
+      <button type="button" class="tab-btn active" data-tab="tab-lancamento">
+        📝 Lançar Dia
+      </button>
+      <button type="button" class="tab-btn" data-tab="tab-mensal">
+        📅 Mês a Mês
+      </button>
+      <button type="button" class="tab-btn" data-tab="tab-historico">
+        📈 Histórico & Relatórios
+      </button>
+    </nav>
+  </header>
+
+  <main class="container main-content">
+    <!-- ABA 1: LANÇAMENTO DIÁRIO -->
+    <section id="tab-lancamento" class="tab-panel active">
+      <div class="grid-lancamento">
+        <!-- Formulário de Lançamento -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Fechamento do Dia</h2>
+              <p class="text-muted">Preencha os valores do dia em reais (R$)</p>
+            </div>
+            <div class="date-selector-wrap">
+              <label for="inputData" class="sr-only">Data do fechamento</label>
+              <input type="date" id="inputData" class="input-date" required />
+            </div>
+          </div>
+
+          <div id="avisoDataExistente" class="alert alert-warning hidden">
+            <span>⚠️ Já existe um fechamento salvo para esta data.</span>
+            <button type="button" id="btnCarregarDataExistente" class="btn btn-sm btn-warning-action">
+              Editar lançamento desse dia
+            </button>
+          </div>
+
+          <form id="formVendaDiaria" novalidate>
+            <input type="hidden" id="editingId" value="" />
+
+            <div class="inputs-grid">
+              <div class="field-group field-cartao">
+                <label for="inputCartao">
+                  <span class="badge-dot dot-cartao"></span> Cartão (R$)
+                </label>
+                <div class="input-currency">
+                  <span class="currency-prefix">R$</span>
+                  <input
+                    type="text"
+                    inputmode="decimal"
+                    id="inputCartao"
+                    placeholder="0,00"
+                    autocomplete="off"
+                  />
+                </div>
+              </div>
+
+              <div class="field-group field-mesa">
+                <label for="inputMesa">
+                  <span class="badge-dot dot-mesa"></span> Mesa (R$)
+                </label>
+                <div class="input-currency">
+                  <span class="currency-prefix">R$</span>
+                  <input
+                    type="text"
+                    inputmode="decimal"
+                    id="inputMesa"
+                    placeholder="0,00"
+                    autocomplete="off"
+                  />
+                </div>
+              </div>
+
+              <div class="field-group field-ifood">
+                <label for="inputIfood">
+                  <span class="badge-dot dot-ifood"></span> iFood (R$)
+                </label>
+                <div class="input-currency">
+                  <span class="currency-prefix">R$</span>
+                  <input
+                    type="text"
+                    inputmode="decimal"
+                    id="inputIfood"
+                    placeholder="0,00"
+                    autocomplete="off"
+                  />
+                </div>
+              </div>
+
+              <div class="field-group field-dinheiro">
+                <label for="inputDinheiro">
+                  <span class="badge-dot dot-dinheiro"></span> Dinheiro (R$)
+                </label>
+                <div class="input-currency">
+                  <span class="currency-prefix">R$</span>
+                  <input
+                    type="text"
+                    inputmode="decimal"
+                    id="inputDinheiro"
+                    placeholder="0,00"
+                    autocomplete="off"
+                  />
+                </div>
+              </div>
+
+              <div class="field-group field-saida field-full">
+                <label for="inputSaida">
+                  <span class="badge-dot dot-saida"></span> Saída / Despesas do Dia (R$)
+                </label>
+                <div class="input-currency">
+                  <span class="currency-prefix">R$</span>
+                  <input
+                    type="text"
+                    inputmode="decimal"
+                    id="inputSaida"
+                    placeholder="0,00"
+                    autocomplete="off"
+                  />
+                </div>
+              </div>
+
+              <div class="field-group field-full">
+                <label for="inputObservacao">Observação (opcional)</label>
+                <input
+                  type="text"
+                  id="inputObservacao"
+                  class="input-text"
+                  placeholder="Ex: Compra de gás, pagamento entregador, movimento de feriado..."
+                  maxlength="140"
+                />
+              </div>
+            </div>
+
+            <!-- Painel de Totais do Dia -->
+            <div class="totais-preview">
+              <div class="totais-row">
+                <div class="total-item">
+                  <span class="total-label">Total Bruto (Entradas)</span>
+                  <strong id="previewBruto" class="total-value text-bruto">R$ 0,00</strong>
+                </div>
+                <div class="total-item">
+                  <span class="total-label">Saídas do Dia</span>
+                  <strong id="previewSaida" class="total-value text-saida">- R$ 0,00</strong>
+                </div>
+              </div>
+              <div class="totais-divider"></div>
+              <div class="total-liquido-row">
+                <div>
+                  <span class="total-label-lg">Total Líquido do Dia</span>
+                  <small class="text-muted block">(Cartão + Mesa + iFood + Dinheiro) − Saída</small>
+                </div>
+                <strong id="previewLiquido" class="total-liquido-value">R$ 0,00</strong>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" id="btnCancelarEdicao" class="btn btn-secondary hidden">
+                Cancelar Edição
+              </button>
+              <button type="button" id="btnLimparCampos" class="btn btn-ghost">
+                Limpar
+              </button>
+              <button type="submit" id="btnSalvarVenda" class="btn btn-primary btn-lg">
+                ✅ Salvar Fechamento do Dia
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Coluna Lateral: Resumo do Mês Atual + Últimos Lançamentos -->
+        <div class="side-column">
+          <div class="card highlight-card">
+            <div class="card-header-compact">
+              <span class="badge-month" id="labelMesAtualResumo">Mês Atual</span>
+              <button type="button" class="btn-link" id="btnIrParaMesAtual">Ver mês a mês →</button>
+            </div>
+            <div class="mini-stats-grid">
+              <div>
+                <span class="stat-caption">Faturamento Bruto</span>
+                <strong id="resumoMesAtualBruto" class="stat-number">R$ 0,00</strong>
+              </div>
+              <div>
+                <span class="stat-caption">Total de Saídas</span>
+                <strong id="resumoMesAtualSaida" class="stat-number text-saida">R$ 0,00</strong>
+              </div>
+              <div class="mini-stat-full">
+                <span class="stat-caption">Saldo Líquido Acumulado no Mês</span>
+                <strong id="resumoMesAtualLiquido" class="stat-number-lg">R$ 0,00</strong>
+                <small id="resumoMesAtualDias" class="text-muted block">0 dias lançados neste mês</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header-compact">
+              <h3>Últimos Lançamentos</h3>
+              <button type="button" class="btn-link" id="btnVerTodoHistorico">Ver todos →</button>
+            </div>
+            <div id="listaUltimosLancamentos" class="recent-list">
+              <!-- Preenchido via JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABA 2: FATURAMENTO MÊS A MÊS -->
+    <section id="tab-mensal" class="tab-panel">
+      <div class="card filter-bar">
+        <div class="filter-bar-row">
+          <div>
+            <h2>Faturamento Mês a Mês</h2>
+            <p class="text-muted">Acompanhe quanto o restaurante faturou em cada mês do ano</p>
+          </div>
+          <div class="year-selector">
+            <button type="button" id="btnAnoAnterior" class="btn btn-icon" title="Ano anterior">◀</button>
+            <select id="selectAnoMensal" class="select-input" aria-label="Selecionar ano"></select>
+            <button type="button" id="btnAnoProximo" class="btn btn-icon" title="Próximo ano">▶</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cards de Resumo Anual -->
+      <div class="kpi-grid">
+        <div class="card kpi-card">
+          <span class="kpi-label">Faturamento Bruto no Ano</span>
+          <strong id="anualTotalBruto" class="kpi-value text-bruto">R$ 0,00</strong>
+          <small id="anualTotalDias" class="text-muted">0 dias registrados</small>
+        </div>
+        <div class="card kpi-card">
+          <span class="kpi-label">Total de Saídas no Ano</span>
+          <strong id="anualTotalSaida" class="kpi-value text-saida">R$ 0,00</strong>
+          <small class="text-muted">Despesas e retiradas diárias</small>
+        </div>
+        <div class="card kpi-card kpi-featured">
+          <span class="kpi-label">Faturamento Líquido no Ano</span>
+          <strong id="anualTotalLiquido" class="kpi-value">R$ 0,00</strong>
+          <small id="anualMediaMensal" class="text-muted">Média mensal: R$ 0,00</small>
+        </div>
+        <div class="card kpi-card">
+          <span class="kpi-label">Melhor Mês do Ano</span>
+          <strong id="anualMelhorMes" class="kpi-value">—</strong>
+          <small id="anualMelhorMesValor" class="text-muted">Sem lançamentos</small>
+        </div>
+      </div>
+
+      <!-- Lista / Tabela Mês a Mês -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Detalhamento Mensal (<span id="labelAnoTabela">2026</span>)</h3>
+          <label class="checkbox-inline no-print">
+            <input type="checkbox" id="chkApenasMesesComMovimento" />
+            Mostrar apenas meses com vendas
+          </label>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table monthly-table">
+            <thead>
+              <tr>
+                <th>Mês</th>
+                <th class="text-center">Dias</th>
+                <th class="text-right">Cartão</th>
+                <th class="text-right">Mesa</th>
+                <th class="text-right">iFood</th>
+                <th class="text-right">Dinheiro</th>
+                <th class="text-right">Total Bruto</th>
+                <th class="text-right">Saídas</th>
+                <th class="text-right">Total Líquido</th>
+                <th class="text-center no-print">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyMensal">
+              <!-- Preenchido via JS -->
+            </tbody>
+            <tfoot id="tfootMensal">
+              <!-- Preenchido via JS -->
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABA 3: HISTÓRICO & RELATÓRIOS -->
+    <section id="tab-historico" class="tab-panel">
+      <div class="card filter-bar no-print">
+        <div class="filters-grid">
+          <div class="field-group">
+            <label for="filtroTipoPeriodo">Período de Consulta</label>
+            <select id="filtroTipoPeriodo" class="select-input">
+              <option value="mes">Por Mês/Ano</option>
+              <option value="intervalo">Intervalo de Datas</option>
+              <option value="todos">Todo o Histórico</option>
+            </select>
+          </div>
+
+          <div id="boxFiltroMes" class="field-group">
+            <label for="filtroMesAno">Mês de Referência</label>
+            <input type="month" id="filtroMesAno" class="input-text" />
+          </div>
+
+          <div id="boxFiltroIntervalo" class="field-group filter-interval-group hidden">
+            <div>
+              <label for="filtroDataInicio">De</label>
+              <input type="date" id="filtroDataInicio" class="input-text" />
+            </div>
+            <div>
+              <label for="filtroDataFim">Até</label>
+              <input type="date" id="filtroDataFim" class="input-text" />
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="filtroBusca">Buscar (data ou observação)</label>
+            <input
+              type="search"
+              id="filtroBusca"
+              class="input-text"
+              placeholder="Ex: 15/10 ou fornecedor..."
+            />
+          </div>
+
+          <div class="filter-buttons">
+            <button type="button" id="btnImprimirRelatorio" class="btn btn-outline">
+              🖨️ Imprimir / PDF
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cabeçalho exclusivo para impressão -->
+      <div class="print-only print-report-header">
+        <h2>Relatório de Vendas Diárias — Restaurante</h2>
+        <p id="printPeriodoLabel"></p>
+      </div>
+
+      <!-- Resumo do Período Filtrado -->
+      <div class="kpi-grid">
+        <div class="card kpi-card">
+          <span class="kpi-label">Total Bruto do Período</span>
+          <strong id="relTotalBruto" class="kpi-value text-bruto">R$ 0,00</strong>
+          <small id="relQtdDias" class="text-muted">0 dias lançados</small>
+        </div>
+        <div class="card kpi-card">
+          <span class="kpi-label">Total de Saídas do Período</span>
+          <strong id="relTotalSaida" class="kpi-value text-saida">R$ 0,00</strong>
+          <small id="relPercentualSaida" class="text-muted">0% sobre o bruto</small>
+        </div>
+        <div class="card kpi-card kpi-featured">
+          <span class="kpi-label">Total Líquido do Período</span>
+          <strong id="relTotalLiquido" class="kpi-value">R$ 0,00</strong>
+          <small id="relMediaDiaria" class="text-muted">Média líquida/dia: R$ 0,00</small>
+        </div>
+      </div>
+
+      <!-- Detalhamento por Categoria no Período -->
+      <div class="card">
+        <h3>Soma por Forma de Entrada no Período</h3>
+        <div class="category-bars" id="relBarrasCategorias">
+          <!-- Preenchido via JS -->
+        </div>
+      </div>
+
+      <!-- Lista / Tabela de Lançamentos Diários -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3>Lançamentos Diários</h3>
+            <p id="subtituloListaHistorico" class="text-muted">Exibindo todos os registros filtrados</p>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th class="text-right">Cartão</th>
+                <th class="text-right">Mesa</th>
+                <th class="text-right">iFood</th>
+                <th class="text-right">Dinheiro</th>
+                <th class="text-right">Total Bruto</th>
+                <th class="text-right">Saída</th>
+                <th class="text-right">Total Líquido</th>
+                <th>Obs.</th>
+                <th class="text-center no-print">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyHistorico">
+              <!-- Preenchido via JS -->
+            </tbody>
+            <tfoot id="tfootHistorico">
+              <!-- Preenchido via JS -->
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL DE EDIÇÃO RÁPIDA -->
+  <div id="modalEdicao" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalEdicaoTitulo">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalEdicaoTitulo">Editar Lançamento</h3>
+        <button type="button" id="btnFecharModalEdicao" class="btn-close" aria-label="Fechar">✕</button>
+      </div>
+      <form id="formModalEdicao" novalidate>
+        <input type="hidden" id="modalEditId" />
+        <div class="inputs-grid">
+          <div class="field-group field-full">
+            <label for="modalEditData">Data do Lançamento</label>
+            <input type="date" id="modalEditData" class="input-date" required />
+          </div>
+          <div class="field-group">
+            <label for="modalEditCartao"><span class="badge-dot dot-cartao"></span> Cartão (R$)</label>
+            <div class="input-currency">
+              <span class="currency-prefix">R$</span>
+              <input type="text" inputmode="decimal" id="modalEditCartao" placeholder="0,00" />
+            </div>
+          </div>
+          <div class="field-group">
+            <label for="modalEditMesa"><span class="badge-dot dot-mesa"></span> Mesa (R$)</label>
+            <div class="input-currency">
+              <span class="currency-prefix">R$</span>
+              <input type="text" inputmode="decimal" id="modalEditMesa" placeholder="0,00" />
+            </div>
+          </div>
+          <div class="field-group">
+            <label for="modalEditIfood"><span class="badge-dot dot-ifood"></span> iFood (R$)</label>
+            <div class="input-currency">
+              <span class="currency-prefix">R$</span>
+              <input type="text" inputmode="decimal" id="modalEditIfood" placeholder="0,00" />
+            </div>
+          </div>
+          <div class="field-group">
+            <label for="modalEditDinheiro"><span class="badge-dot dot-dinheiro"></span> Dinheiro (R$)</label>
+            <div class="input-currency">
+              <span class="currency-prefix">R$</span>
+              <input type="text" inputmode="decimal" id="modalEditDinheiro" placeholder="0,00" />
+            </div>
+          </div>
+          <div class="field-group field-full">
+            <label for="modalEditSaida"><span class="badge-dot dot-saida"></span> Saída / Despesas (R$)</label>
+            <div class="input-currency">
+              <span class="currency-prefix">R$</span>
+              <input type="text" inputmode="decimal" id="modalEditSaida" placeholder="0,00" />
+            </div>
+          </div>
+          <div class="field-group field-full">
+            <label for="modalEditObs">Observação</label>
+            <input type="text" id="modalEditObs" class="input-text" maxlength="140" />
+          </div>
+        </div>
+
+        <div class="totais-preview compact-preview">
+          <div class="totais-row">
+            <span>Total Bruto: <strong id="modalPreviewBruto">R$ 0,00</strong></span>
+            <span>Total Líquido: <strong id="modalPreviewLiquido">R$ 0,00</strong></span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="btnExcluirDoModal" class="btn btn-danger-outline">
+            🗑️ Excluir
+          </button>
+          <div class="modal-footer-right">
+            <button type="button" id="btnCancelarModalEdicao" class="btn btn-ghost">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DE BACKUP (EXPORTAR / IMPORTAR) -->
+  <div id="modalBackup" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalBackupTitulo">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalBackupTitulo">Backup e Restauração de Dados</h3>
+        <button type="button" id="btnFecharModalBackup" class="btn-close" aria-label="Fechar">✕</button>
+      </div>
+      <div class="backup-body">
+        <p class="text-muted">
+          Seus lançamentos ficam salvos automaticamente neste navegador. Use as opções abaixo para guardar uma cópia de segurança ou transferir seus dados para outro aparelho.
+        </p>
+
+        <div class="backup-section">
+          <h4>📥 Baixar Cópia de Segurança</h4>
+          <p class="text-muted small">Salva um arquivo com todo o seu histórico de vendas.</p>
+          <div class="backup-buttons">
+            <button type="button" id="btnDownloadBackupJson" class="btn btn-primary">
+              💾 Baixar Backup Completo (.json)
+            </button>
+            <button type="button" id="btnDownloadBackupCsv" class="btn btn-outline">
+              📊 Baixar Planilha Excel (.csv)
+            </button>
+          </div>
+        </div>
+
+        <hr class="divider" />
+
+        <div class="backup-section">
+          <h4>📤 Restaurar / Importar Backup</h4>
+          <p class="text-muted small">Selecione um arquivo <code>.json</code> exportado anteriormente.</p>
+          <input type="file" id="inputFileBackup" accept=".json,application/json" class="file-input" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST DE NOTIFICAÇÃO -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
